@@ -51,19 +51,23 @@
   if (!ref || !platform) {
     msg.textContent = 'Link non valido: manca il riferimento dipendente o la piattaforma.';
   } else {
-    const url = `${SCRIPT_URL}?ref=${encodeURIComponent(ref)}&platform=${encodeURIComponent(platform)}`;
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.dest) {
-          window.location.replace(data.dest);
-        } else {
-          msg.textContent = (data && data.error) ? data.error : 'Destinazione non configurata. Controlla il foglio "Settings".';
-        }
-      })
-      .catch(() => {
-        msg.textContent = 'Errore di connessione. Riprova più tardi.';
-      });
+    // Usiamo JSONP (uno <script> caricato dinamicamente) invece di fetch,
+    // perché Apps Script su un altro dominio (GitHub Pages) può avere
+    // problemi di CORS con fetch().
+    window.__reviewTrackerCallback = function (data) {
+      if (data && data.dest) {
+        window.location.replace(data.dest);
+      } else {
+        msg.textContent = (data && data.error) ? data.error : 'Destinazione non configurata. Controlla il foglio "Settings".';
+      }
+    };
+
+    const script = document.createElement('script');
+    script.src = `${SCRIPT_URL}?ref=${encodeURIComponent(ref)}&platform=${encodeURIComponent(platform)}&callback=__reviewTrackerCallback`;
+    script.onerror = function () {
+      msg.textContent = 'Errore di connessione al backend. Controlla l\'URL Apps Script e che l\'app web sia accessibile a "Chiunque".';
+    };
+    document.body.appendChild(script);
   }
 </script>
 </body>
